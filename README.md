@@ -167,7 +167,8 @@ The system calculates victim danger levels using:
 * Streamlit
 * HTML/CSS
 
-  <img width="1897" height="948" alt="image" src="https://github.com/user-attachments/assets/1bcc089c-b84b-4c71-a64a-83113e08eba9" />
+  <img width="1901" height="940" alt="image" src="https://github.com/user-attachments/assets/655bda0d-0711-43f2-ae85-ad64ce40e966" />
+
 
 
 ---
