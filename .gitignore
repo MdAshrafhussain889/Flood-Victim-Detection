@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+*.pth
+checkpoints/
+outputs/
+processed_data/
+*.mp4
+*.avi
+*.mov
+.DS_Store
+.idea/
+.vscode/

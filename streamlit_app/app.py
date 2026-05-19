@@ -1,0 +1,484 @@
+# ============================================================
+# streamlit_app/app.py
+# Flood Victim Detection v3 - Compact Single-Page Dashboard
+#
+# Run: streamlit run streamlit_app/app.py
+# ============================================================
+
+import os
+import sys
+import cv2
+import numpy as np
+import tempfile
+import streamlit as st
+from PIL import Image
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from pipeline.realtime_pipeline import RealTimeFloodSystem
+from video.video_processor import VideoProcessor
+from visualization.visualizer import overlay_mask, draw_detections
+from configs.config import APP_TITLE
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+st.set_page_config(
+    page_title=APP_TITLE,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ============================================================
+# CSS - Compact single-page professional theme
+# ============================================================
+st.markdown("""
+<style>
+    /* ── Global reset ── */
+    html, body, [data-testid="stAppViewContainer"] {
+        background: #080c14 !important;
+    }
+    .main .block-container {
+        padding: 0.6rem 1.2rem 0.4rem !important;
+        max-width: 100% !important;
+    }
+
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background: #0d1424 !important;
+        border-right: 1px solid #1a2540 !important;
+    }
+    [data-testid="stSidebar"] .block-container { padding: 1rem 0.8rem !important; }
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stRadio label,
+    [data-testid="stSidebar"] p { color: #8fa3c8 !important; font-size: 12px !important; }
+    [data-testid="stSidebar"] h1 {
+        color: #c8d8f0 !important; font-size: 15px !important;
+        letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.4rem;
+    }
+    [data-testid="stSidebar"] hr { border-color: #1a2540 !important; margin: 0.5rem 0 !important; }
+
+    /* ── Header ── */
+    .fvd-header {
+        display: flex; align-items: baseline; gap: 14px;
+        padding: 0.3rem 0 0.5rem;
+        border-bottom: 1px solid #1a2540;
+        margin-bottom: 0.5rem;
+    }
+    .fvd-title {
+        font-size: 18px; font-weight: 700; letter-spacing: 0.04em;
+        color: #e8f0ff; font-family: 'Courier New', monospace;
+        text-transform: uppercase;
+    }
+    .fvd-subtitle { font-size: 11px; color: #4a6080; letter-spacing: 0.06em; }
+
+    /* ── Status badges ── */
+    .status-flood {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,50,50,0.08); border: 1px solid #ff3232;
+        border-radius: 4px; padding: 3px 10px;
+        color: #ff6060; font-size: 11px; font-weight: 700;
+        letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .status-no-flood {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(30,200,100,0.08); border: 1px solid #1ec864;
+        border-radius: 4px; padding: 3px 10px;
+        color: #1ec864; font-size: 11px; font-weight: 700;
+        letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot-flood { background: #ff3232; box-shadow: 0 0 4px #ff3232; animation: pulse 1.2s infinite; }
+    .dot-safe  { background: #1ec864; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Metric cards ── */
+    .metric-row { display: flex; gap: 8px; margin: 0.4rem 0 0.5rem; }
+    .metric-card {
+        flex: 1; background: #0d1424; border: 1px solid #1a2540;
+        border-radius: 6px; padding: 7px 10px; text-align: center;
+    }
+    .metric-label { font-size: 9px; color: #3d5070; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+    .metric-value { font-size: 20px; font-weight: 700; color: #c8d8f0; font-family: 'Courier New', monospace; }
+    .metric-critical .metric-value { color: #ff3232; }
+    .metric-high .metric-value     { color: #ff7722; }
+    .metric-medium .metric-value   { color: #ffcc00; }
+    .metric-low .metric-value      { color: #1ec864; }
+
+    /* ── Confidence bar ── */
+    .conf-bar-wrap {
+        background: #0d1424; border: 1px solid #1a2540; border-radius: 6px;
+        padding: 6px 12px; margin-bottom: 0.5rem;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .conf-label { font-size: 10px; color: #4a6080; letter-spacing: 0.08em; white-space: nowrap; }
+    .conf-track {
+        flex: 1; height: 4px; background: #1a2540; border-radius: 2px; overflow: hidden;
+    }
+    .conf-fill  { height: 100%; border-radius: 2px; transition: width 0.4s; }
+    .conf-value { font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace; white-space: nowrap; }
+
+    /* ── Panel labels ── */
+    .panel-label {
+        font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: #3d5070; margin-bottom: 3px; font-weight: 600;
+        padding-bottom: 3px; border-bottom: 1px solid #1a2540;
+    }
+
+    /* ── Risk table ── */
+    .risk-table {
+        width: 100%; border-collapse: collapse; font-size: 11px;
+        font-family: 'Courier New', monospace;
+    }
+    .risk-table th {
+        background: #0d1424; color: #3d5070; font-size: 9px;
+        letter-spacing: 0.1em; text-transform: uppercase;
+        padding: 5px 8px; border-bottom: 1px solid #1a2540;
+        text-align: left;
+    }
+    .risk-table td { padding: 4px 8px; border-bottom: 1px solid #111827; color: #8fa3c8; }
+    .risk-table tr:last-child td { border-bottom: none; }
+    .risk-badge {
+        display: inline-block; padding: 1px 6px; border-radius: 3px;
+        font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    }
+    .r-critical { background:rgba(255,50,50,0.15);  color:#ff5050; border:1px solid rgba(255,50,50,0.3); }
+    .r-high     { background:rgba(255,119,34,0.15); color:#ff8833; border:1px solid rgba(255,119,34,0.3); }
+    .r-medium   { background:rgba(255,204,0,0.15);  color:#ffcc00; border:1px solid rgba(255,204,0,0.3); }
+    .r-low      { background:rgba(30,200,100,0.15); color:#1ec864; border:1px solid rgba(30,200,100,0.3); }
+
+    /* ── System info chip ── */
+    .sys-chip {
+        background: #0a1020; border: 1px solid #1a2540; border-radius: 4px;
+        padding: 5px 8px; font-size: 10px; color: #4a6080;
+        font-family: 'Courier New', monospace; line-height: 1.8;
+    }
+
+    /* ── Tight column images ── */
+    [data-testid="stImage"] img { border-radius: 4px !important; }
+
+    /* ── Reduce Streamlit default spacing ── */
+    [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] { gap: 0 !important; }
+    .stColumns { gap: 0.5rem !important; }
+    div[data-testid="column"] { padding: 0 !important; }
+    [data-testid="stFileUploader"] { padding: 0 !important; }
+    [data-testid="stFileUploader"] > div { padding: 6px !important; }
+    h1, h2, h3 { margin: 0 !important; padding: 0 !important; }
+    hr { margin: 0.4rem 0 !important; border-color: #1a2540 !important; }
+    p  { margin: 0 !important; }
+
+    /* ── Upload zone ── */
+    [data-testid="stFileUploader"] section {
+        border: 1px dashed #1a2540 !important;
+        background: #0d1424 !important;
+        border-radius: 6px !important;
+    }
+    [data-testid="stFileUploader"] label { color: #4a6080 !important; font-size: 11px !important; }
+
+    /* ── Download btn ── */
+    .stDownloadButton button {
+        background: transparent !important;
+        border: 1px solid #1a2540 !important;
+        color: #4a6080 !important;
+        font-size: 10px !important;
+        padding: 3px 10px !important;
+        border-radius: 4px !important;
+        letter-spacing: 0.08em;
+    }
+    .stDownloadButton button:hover { border-color: #2e6fff !important; color: #6090ff !important; }
+
+    /* ── Spinner ── */
+    .stSpinner > div { border-color: #2e6fff transparent transparent !important; }
+
+    /* ── Checkbox ── */
+    [data-testid="stCheckbox"] label { font-size: 11px !important; color: #4a6080 !important; }
+
+    /* ── Caption ── */
+    .stCaption { color: #2a3a50 !important; font-size: 10px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# INIT (cached)
+# ============================================================
+@st.cache_resource
+def load_system():
+    return RealTimeFloodSystem()
+
+@st.cache_resource
+def load_video_processor():
+    return VideoProcessor()
+
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+with st.sidebar:
+    st.markdown('<h1 style="margin-bottom:0.6rem;">Controls</h1>', unsafe_allow_html=True)
+    st.markdown("---")
+
+    input_mode = st.radio(
+        "Input Source",
+        ["Image Upload", "Video Upload", "Webcam"],
+        index=0,
+        label_visibility="visible",
+    )
+
+    st.markdown("---")
+    st.markdown('<p style="font-size:10px;color:#3d5070;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">System Info</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sys-chip">'
+        'Model &nbsp;:&nbsp; Attention U-Net<br>'
+        'Detector :&nbsp; YOLOv8n<br>'
+        'Tracker &nbsp;:&nbsp; Centroid<br>'
+        'Device &nbsp;:&nbsp; CPU'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+    show_mask    = st.checkbox("Flood Mask",    value=True)
+    show_overlay = st.checkbox("Flood Overlay", value=True)
+
+    st.markdown("---")
+    st.markdown(
+        '<p class="stCaption">FVD v3 · Phase 4 Real-Time Pipeline</p>',
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# HEADER
+# ============================================================
+st.markdown(
+    '<div class="fvd-header">'
+    '<span class="fvd-title">Flood Victim Detection v3</span>'
+    '<span class="fvd-subtitle">Attention U-Net &amp; YOLOv8 · Real-Time Pipeline</span>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+def bgr_to_rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+def render_conf_bar(confidence):
+    pct   = confidence * 100
+    color = "#1ec864" if pct < 30 else "#ff8833" if pct < 60 else "#ff3232"
+    label = "LOW" if pct < 30 else "MODERATE" if pct < 60 else "HIGH"
+    st.markdown(
+        f'<div class="conf-bar-wrap">'
+        f'<span class="conf-label">SEG CONFIDENCE</span>'
+        f'<div class="conf-track"><div class="conf-fill" style="width:{pct:.0f}%;background:{color};"></div></div>'
+        f'<span class="conf-value" style="color:{color};">{label} {pct:.1f}%</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_metrics(result):
+    dets = result.get("detections", [])
+    counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    for d in dets:
+        r = d.get("risk", "LOW")
+        counts[r] = counts.get(r, 0) + 1
+
+    st.markdown(
+        f'<div class="metric-row">'
+        f'<div class="metric-card"><div class="metric-label">Persons</div><div class="metric-value">{len(dets)}</div></div>'
+        f'<div class="metric-card metric-critical"><div class="metric-label">Critical</div><div class="metric-value">{counts["CRITICAL"]}</div></div>'
+        f'<div class="metric-card metric-high"><div class="metric-label">High</div><div class="metric-value">{counts["HIGH"]}</div></div>'
+        f'<div class="metric-card metric-medium"><div class="metric-label">Medium</div><div class="metric-value">{counts["MEDIUM"]}</div></div>'
+        f'<div class="metric-card metric-low"><div class="metric-label">Low</div><div class="metric-value">{counts["LOW"]}</div></div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_risk_table(detections):
+    if not detections:
+        return
+    rows_html = ""
+    for i, det in enumerate(detections, 1):
+        x1, y1, x2, y2 = det["box"]
+        risk  = det.get("risk", "LOW")
+        cls   = f"r-{risk.lower()}"
+        rows_html += (
+            f'<tr>'
+            f'<td>{i}</td>'
+            f'<td>{det.get("track_id", "-")}</td>'
+            f'<td><span class="risk-badge {cls}">{risk}</span></td>'
+            f'<td>{det.get("overlap", 0):.1f}%</td>'
+            f'<td>({x1},{y1})→({x2},{y2})</td>'
+            f'</tr>'
+        )
+    st.markdown(
+        f'<table class="risk-table">'
+        f'<thead><tr><th>#</th><th>Track ID</th><th>Risk</th><th>Overlap</th><th>Bounding Box</th></tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        f'</table>',
+        unsafe_allow_html=True,
+    )
+
+
+def panel(label):
+    st.markdown(f'<p class="panel-label">{label}</p>', unsafe_allow_html=True)
+
+
+# ============================================================
+# MAIN INFERENCE  — single-page compact layout
+# ============================================================
+def run_inference(frame, system, show_input=True):
+    with st.spinner("Analysing…"):
+        result = system.process_frame(frame)
+
+    decision = result["decision"]
+
+    # ── Status + confidence row ──────────────────────────────
+    row_a, row_b = st.columns([1, 3])
+    with row_a:
+        if decision == "NO FLOOD":
+            st.markdown(
+                '<div class="status-no-flood">'
+                '<span class="status-dot dot-safe"></span>NO FLOOD</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div class="status-flood">'
+                '<span class="status-dot dot-flood"></span>FLOOD DETECTED</div>',
+                unsafe_allow_html=True,
+            )
+
+    if decision == "NO FLOOD":
+        st.markdown("---")
+        panel("Uploaded Image")
+        st.image(bgr_to_rgb(frame), use_container_width=True)
+        return
+
+    seg  = result["segmentation"]
+    mask = seg["mask"]
+    conf = seg["confidence"]
+    dets = result.get("detections", [])
+
+    with row_b:
+        render_conf_bar(conf)
+
+    # ── Metrics row ──────────────────────────────────────────
+    render_metrics(result)
+
+    st.markdown("---")
+
+    # ── Image grid: determine active columns ─────────────────
+    annotated = frame.copy()
+    annotated = draw_detections(annotated, dets)
+
+    active_cols  = ["input", "detection"]
+    if show_overlay: active_cols.append("overlay")
+    if show_mask:    active_cols.append("mask")
+
+    cols = st.columns(len(active_cols))
+    col_map = dict(zip(active_cols, cols))
+
+    with col_map["input"]:
+        panel("Uploaded Image")
+        st.image(bgr_to_rgb(frame), use_container_width=True)
+
+    with col_map["detection"]:
+        panel("Detection Result")
+        st.image(bgr_to_rgb(annotated), use_container_width=True)
+
+    if show_overlay:
+        with col_map["overlay"]:
+            panel("Flood Overlay")
+            colored_mask = cv2.applyColorMap(mask.astype(np.uint8), cv2.COLORMAP_JET)
+            overlay_img  = cv2.addWeighted(frame, 0.65, colored_mask, 0.35, 0)
+            st.image(bgr_to_rgb(overlay_img), use_container_width=True)
+
+    if show_mask:
+        with col_map["mask"]:
+            panel("Flood Mask")
+            st.image(mask, use_container_width=True, clamp=True)
+
+    # ── Risk table + download ────────────────────────────────
+    st.markdown("---")
+    tbl_col, dl_col = st.columns([5, 1])
+    with tbl_col:
+        panel("Per-Person Risk Details")
+        if dets:
+            render_risk_table(dets)
+        else:
+            st.markdown('<p style="font-size:11px;color:#3d5070;">No persons detected.</p>', unsafe_allow_html=True)
+
+    with dl_col:
+        _, buf = cv2.imencode(".png", annotated)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="↓ Download",
+            data=buf.tobytes(),
+            file_name="flood_detection.png",
+            mime="image/png",
+        )
+
+
+# ============================================================
+# INPUT MODES
+# ============================================================
+system          = load_system()
+video_processor = load_video_processor()
+
+if input_mode == "Image Upload":
+    up_col, _ = st.columns([2, 5])
+    with up_col:
+        uploaded = st.file_uploader(
+            "Upload flood image",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed",
+        )
+    if uploaded:
+        file_bytes = np.frombuffer(uploaded.read(), np.uint8)
+        frame      = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        run_inference(frame, system)
+    else:
+        st.markdown(
+            '<p style="font-size:11px;color:#2a3a50;margin-top:2rem;text-align:center;">'
+            'Upload a JPG / PNG to begin analysis.</p>',
+            unsafe_allow_html=True,
+        )
+
+elif input_mode == "Video Upload":
+    up_col, _ = st.columns([2, 5])
+    with up_col:
+        uploaded_vid = st.file_uploader(
+            "Upload flood video",
+            type=["mp4", "avi", "mov"],
+            label_visibility="collapsed",
+        )
+    if uploaded_vid:
+        tmp_in  = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tmp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        tmp_in.write(uploaded_vid.read()); tmp_in.flush()
+
+        if st.button("Process Video"):
+            with st.spinner("Processing on CPU — may take a while…"):
+                out_path = video_processor.process(tmp_in.name, tmp_out.name)
+            st.success("Done.")
+            with open(out_path, "rb") as f:
+                st.download_button(
+                    "↓ Download Annotated Video",
+                    data=f.read(),
+                    file_name="annotated_flood_video.mp4",
+                    mime="video/mp4",
+                )
+
+elif input_mode == "Webcam":
+    st.markdown('<p style="font-size:11px;color:#4a6080;">Capture a frame — the system will analyse it instantly.</p>', unsafe_allow_html=True)
+    cam_img = st.camera_input("", label_visibility="collapsed")
+    if cam_img:
+        file_bytes = np.frombuffer(cam_img.read(), np.uint8)
+        frame      = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        run_inference(frame, system)
