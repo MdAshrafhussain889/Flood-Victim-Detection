@@ -35,7 +35,7 @@ st.markdown("""
 <style>
     /* ── Global reset ── */
     html, body, [data-testid="stAppViewContainer"] {
-        background: #080c14 !important;
+        background: #0b0f1a !important;
     }
     .main .block-container {
         padding: 0.6rem 1.2rem 0.4rem !important;
@@ -44,113 +44,114 @@ st.markdown("""
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: #0d1424 !important;
-        border-right: 1px solid #1a2540 !important;
+        background: #111828 !important;
+        border-right: 1px solid #253350 !important;
     }
     [data-testid="stSidebar"] .block-container { padding: 1rem 0.8rem !important; }
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] .stRadio label,
-    [data-testid="stSidebar"] p { color: #8fa3c8 !important; font-size: 12px !important; }
+    [data-testid="stSidebar"] p { color: #b0c4e8 !important; font-size: 12px !important; }
     [data-testid="stSidebar"] h1 {
-        color: #c8d8f0 !important; font-size: 15px !important;
+        color: #e4eeff !important; font-size: 15px !important;
         letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.4rem;
     }
-    [data-testid="stSidebar"] hr { border-color: #1a2540 !important; margin: 0.5rem 0 !important; }
+    [data-testid="stSidebar"] hr { border-color: #253350 !important; margin: 0.5rem 0 !important; }
 
     /* ── Header ── */
     .fvd-header {
         display: flex; align-items: baseline; gap: 14px;
         padding: 0.3rem 0 0.5rem;
-        border-bottom: 1px solid #1a2540;
+        border-bottom: 1px solid #253350;
         margin-bottom: 0.5rem;
     }
     .fvd-title {
         font-size: 18px; font-weight: 700; letter-spacing: 0.04em;
-        color: #e8f0ff; font-family: 'Courier New', monospace;
+        color: #eef4ff; font-family: 'Courier New', monospace;
         text-transform: uppercase;
     }
-    .fvd-subtitle { font-size: 11px; color: #4a6080; letter-spacing: 0.06em; }
+    .fvd-subtitle { font-size: 11px; color: #7a98c0; letter-spacing: 0.06em; }
 
     /* ── Status badges ── */
     .status-flood {
         display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(255,50,50,0.08); border: 1px solid #ff3232;
-        border-radius: 4px; padding: 3px 10px;
-        color: #ff6060; font-size: 11px; font-weight: 700;
+        background: rgba(255,60,60,0.12); border: 1px solid #ff4040;
+        border-radius: 4px; padding: 4px 12px;
+        color: #ff7070; font-size: 11px; font-weight: 700;
         letter-spacing: 0.12em; text-transform: uppercase;
     }
     .status-no-flood {
         display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(30,200,100,0.08); border: 1px solid #1ec864;
-        border-radius: 4px; padding: 3px 10px;
-        color: #1ec864; font-size: 11px; font-weight: 700;
+        background: rgba(30,210,110,0.12); border: 1px solid #1ed878;
+        border-radius: 4px; padding: 4px 12px;
+        color: #1ed878; font-size: 11px; font-weight: 700;
         letter-spacing: 0.12em; text-transform: uppercase;
     }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .dot-flood { background: #ff3232; box-shadow: 0 0 4px #ff3232; animation: pulse 1.2s infinite; }
-    .dot-safe  { background: #1ec864; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot-flood { background: #ff4040; box-shadow: 0 0 5px #ff4040; animation: pulse 1.2s infinite; }
+    .dot-safe  { background: #1ed878; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
     /* ── Metric cards ── */
     .metric-row { display: flex; gap: 8px; margin: 0.4rem 0 0.5rem; }
     .metric-card {
-        flex: 1; background: #0d1424; border: 1px solid #1a2540;
-        border-radius: 6px; padding: 7px 10px; text-align: center;
+        flex: 1; background: #111828; border: 1px solid #253350;
+        border-radius: 6px; padding: 8px 10px; text-align: center;
     }
-    .metric-label { font-size: 9px; color: #3d5070; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
-    .metric-value { font-size: 20px; font-weight: 700; color: #c8d8f0; font-family: 'Courier New', monospace; }
-    .metric-critical .metric-value { color: #ff3232; }
-    .metric-high .metric-value     { color: #ff7722; }
-    .metric-medium .metric-value   { color: #ffcc00; }
-    .metric-low .metric-value      { color: #1ec864; }
+    .metric-label { font-size: 10px; color: #7a98c0; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; font-weight: 600; }
+    .metric-value { font-size: 22px; font-weight: 700; color: #ddeaff; font-family: 'Courier New', monospace; }
+    .metric-critical .metric-value { color: #ff5555; }
+    .metric-high .metric-value     { color: #ff8833; }
+    .metric-medium .metric-value   { color: #ffd700; }
+    .metric-low .metric-value      { color: #22e87a; }
 
     /* ── Confidence bar ── */
     .conf-bar-wrap {
-        background: #0d1424; border: 1px solid #1a2540; border-radius: 6px;
-        padding: 6px 12px; margin-bottom: 0.5rem;
-        display: flex; align-items: center; gap: 10px;
+        background: #111828; border: 1px solid #253350; border-radius: 6px;
+        padding: 7px 14px; margin-bottom: 0.5rem;
+        display: flex; align-items: center; gap: 12px;
     }
-    .conf-label { font-size: 10px; color: #4a6080; letter-spacing: 0.08em; white-space: nowrap; }
+    .conf-label { font-size: 10px; color: #7a98c0; letter-spacing: 0.1em; font-weight: 600; white-space: nowrap; }
     .conf-track {
-        flex: 1; height: 4px; background: #1a2540; border-radius: 2px; overflow: hidden;
+        flex: 1; height: 5px; background: #1e2e46; border-radius: 3px; overflow: hidden;
     }
-    .conf-fill  { height: 100%; border-radius: 2px; transition: width 0.4s; }
-    .conf-value { font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace; white-space: nowrap; }
+    .conf-fill  { height: 100%; border-radius: 3px; transition: width 0.4s; }
+    .conf-value { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; white-space: nowrap; }
 
     /* ── Panel labels ── */
     .panel-label {
-        font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
-        color: #3d5070; margin-bottom: 3px; font-weight: 600;
-        padding-bottom: 3px; border-bottom: 1px solid #1a2540;
+        font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: #8ab0d8; margin-bottom: 4px; font-weight: 700;
+        padding-bottom: 4px; border-bottom: 1px solid #253350;
     }
 
     /* ── Risk table ── */
     .risk-table {
-        width: 100%; border-collapse: collapse; font-size: 11px;
+        width: 100%; border-collapse: collapse; font-size: 12px;
         font-family: 'Courier New', monospace;
     }
     .risk-table th {
-        background: #0d1424; color: #3d5070; font-size: 9px;
+        background: #111828; color: #7a98c0; font-size: 10px;
         letter-spacing: 0.1em; text-transform: uppercase;
-        padding: 5px 8px; border-bottom: 1px solid #1a2540;
-        text-align: left;
+        padding: 6px 10px; border-bottom: 1px solid #253350;
+        text-align: left; font-weight: 700;
     }
-    .risk-table td { padding: 4px 8px; border-bottom: 1px solid #111827; color: #8fa3c8; }
+    .risk-table td { padding: 5px 10px; border-bottom: 1px solid #1a2840; color: #c4d8f4; }
     .risk-table tr:last-child td { border-bottom: none; }
+    .risk-table tr:hover td { background: #141e30; }
     .risk-badge {
-        display: inline-block; padding: 1px 6px; border-radius: 3px;
-        font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+        display: inline-block; padding: 2px 8px; border-radius: 3px;
+        font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
     }
-    .r-critical { background:rgba(255,50,50,0.15);  color:#ff5050; border:1px solid rgba(255,50,50,0.3); }
-    .r-high     { background:rgba(255,119,34,0.15); color:#ff8833; border:1px solid rgba(255,119,34,0.3); }
-    .r-medium   { background:rgba(255,204,0,0.15);  color:#ffcc00; border:1px solid rgba(255,204,0,0.3); }
-    .r-low      { background:rgba(30,200,100,0.15); color:#1ec864; border:1px solid rgba(30,200,100,0.3); }
+    .r-critical { background:rgba(255,60,60,0.2);  color:#ff6666; border:1px solid rgba(255,60,60,0.5); }
+    .r-high     { background:rgba(255,136,51,0.2); color:#ffaa55; border:1px solid rgba(255,136,51,0.5); }
+    .r-medium   { background:rgba(255,215,0,0.18); color:#ffd700; border:1px solid rgba(255,215,0,0.5); }
+    .r-low      { background:rgba(34,232,122,0.18);color:#22e87a; border:1px solid rgba(34,232,122,0.5); }
 
     /* ── System info chip ── */
     .sys-chip {
-        background: #0a1020; border: 1px solid #1a2540; border-radius: 4px;
-        padding: 5px 8px; font-size: 10px; color: #4a6080;
-        font-family: 'Courier New', monospace; line-height: 1.8;
+        background: #0d1424; border: 1px solid #253350; border-radius: 4px;
+        padding: 7px 10px; font-size: 11px; color: #8ab0d8;
+        font-family: 'Courier New', monospace; line-height: 2.0;
     }
 
     /* ── Tight column images ── */
@@ -168,32 +169,39 @@ st.markdown("""
 
     /* ── Upload zone ── */
     [data-testid="stFileUploader"] section {
-        border: 1px dashed #1a2540 !important;
-        background: #0d1424 !important;
+        border: 1px dashed #253350 !important;
+        background: #111828 !important;
         border-radius: 6px !important;
     }
-    [data-testid="stFileUploader"] label { color: #4a6080 !important; font-size: 11px !important; }
+    [data-testid="stFileUploader"] label { color: #7a98c0 !important; font-size: 11px !important; }
+    [data-testid="stFileUploader"] p { color: #7a98c0 !important; }
 
     /* ── Download btn ── */
     .stDownloadButton button {
         background: transparent !important;
-        border: 1px solid #1a2540 !important;
-        color: #4a6080 !important;
-        font-size: 10px !important;
-        padding: 3px 10px !important;
+        border: 1px solid #253350 !important;
+        color: #7a98c0 !important;
+        font-size: 11px !important;
+        padding: 4px 12px !important;
         border-radius: 4px !important;
         letter-spacing: 0.08em;
     }
-    .stDownloadButton button:hover { border-color: #2e6fff !important; color: #6090ff !important; }
+    .stDownloadButton button:hover { border-color: #4a80ff !important; color: #80aaff !important; }
 
     /* ── Spinner ── */
-    .stSpinner > div { border-color: #2e6fff transparent transparent !important; }
+    .stSpinner > div { border-color: #4a80ff transparent transparent !important; }
 
     /* ── Checkbox ── */
-    [data-testid="stCheckbox"] label { font-size: 11px !important; color: #4a6080 !important; }
+    [data-testid="stCheckbox"] label { font-size: 12px !important; color: #8ab0d8 !important; }
 
-    /* ── Caption ── */
-    .stCaption { color: #2a3a50 !important; font-size: 10px !important; }
+    /* ── Caption / footer ── */
+    .stCaption { color: #4a6888 !important; font-size: 11px !important; }
+
+    /* ── Sidebar section header ── */
+    .sys-section-hdr {
+        font-size: 10px; color: #5a7898; letter-spacing: .12em;
+        text-transform: uppercase; margin-bottom: 6px; font-weight: 700;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -225,7 +233,7 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown('<p style="font-size:10px;color:#3d5070;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">System Info</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sys-section-hdr">System Info</p>', unsafe_allow_html=True)
     st.markdown(
         '<div class="sys-chip">'
         'Model &nbsp;:&nbsp; Attention U-Net<br>'
@@ -412,7 +420,7 @@ def run_inference(frame, system, show_input=True):
         if dets:
             render_risk_table(dets)
         else:
-            st.markdown('<p style="font-size:11px;color:#3d5070;">No persons detected.</p>', unsafe_allow_html=True)
+            st.markdown('<p style="font-size:12px;color:#7a98c0;">No persons detected.</p>', unsafe_allow_html=True)
 
     with dl_col:
         _, buf = cv2.imencode(".png", annotated)
@@ -445,7 +453,7 @@ if input_mode == "Image Upload":
         run_inference(frame, system)
     else:
         st.markdown(
-            '<p style="font-size:11px;color:#2a3a50;margin-top:2rem;text-align:center;">'
+            '<p style="font-size:12px;color:#5a7898;margin-top:2rem;text-align:center;">'
             'Upload a JPG / PNG to begin analysis.</p>',
             unsafe_allow_html=True,
         )
@@ -476,7 +484,7 @@ elif input_mode == "Video Upload":
                 )
 
 elif input_mode == "Webcam":
-    st.markdown('<p style="font-size:11px;color:#4a6080;">Capture a frame — the system will analyse it instantly.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:12px;color:#7a98c0;">Capture a frame — the system will analyse it instantly.</p>', unsafe_allow_html=True)
     cam_img = st.camera_input("", label_visibility="collapsed")
     if cam_img:
         file_bytes = np.frombuffer(cam_img.read(), np.uint8)
