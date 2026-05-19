@@ -281,9 +281,6 @@ The system supports:
 
 Mohammed Ashraf Hussain
 
-M.Tech CSE (AI & ML)
-C-DAC Bangalore – WBL Intern (AI/ML Domain)
-
 ---
 
 # License
