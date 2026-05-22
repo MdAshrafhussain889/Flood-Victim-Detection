@@ -31,11 +31,22 @@ class RealTimeFloodSystem:
             result["detections"] = []
             return result
 
-        mask       = result["segmentation"]["mask"]
-        confidence = result["segmentation"]["confidence"]
+        seg = result.get("segmentation")
+        mask_available = bool(seg) and not seg.get("suppressed", False)
 
         detections = self.detector.detect(image)
         detections = self.tracker.update(detections)
+
+        if not mask_available:
+            for det in detections:
+                det["risk"] = "UNKNOWN"
+                det["risk_score"] = 0.0
+                det["overlap"] = 0.0
+            result["detections"] = detections
+            return result
+
+        mask       = seg["mask"]
+        confidence = seg["confidence"]
 
         for det in detections:
             box        = det["box"]

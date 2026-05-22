@@ -16,7 +16,7 @@ from segmentation.confidence import (
     should_suppress_mask,
 )
 from segmentation.postprocessing import remove_small_regions, apply_morphology
-from configs.config import SEGMENTATION_THRESHOLD
+from configs.config import MIN_FLOOD_PIXEL_RATIO, SEGMENTATION_THRESHOLD
 
 
 class AdvancedFloodSegmenter:
@@ -39,15 +39,29 @@ class AdvancedFloodSegmenter:
                 "mask":       empty_mask,
                 "confidence": confidence,
                 "suppressed": True,
+                "flood_pixel_ratio": 0.0,
+                "suppression_reason": "low_confidence",
             }
 
         mask = (prob_map > SEGMENTATION_THRESHOLD).astype(np.uint8) * 255
         mask = apply_morphology(mask)
         mask = remove_small_regions(mask)
         mask = cv2.resize(mask, (original_w, original_h), interpolation=cv2.INTER_NEAREST)
+        flood_pixel_ratio = float(np.count_nonzero(mask) / mask.size)
+
+        if flood_pixel_ratio < MIN_FLOOD_PIXEL_RATIO:
+            empty_mask = np.zeros((original_h, original_w), dtype=np.uint8)
+            return {
+                "mask":       empty_mask,
+                "confidence": confidence,
+                "suppressed": True,
+                "flood_pixel_ratio": flood_pixel_ratio,
+                "suppression_reason": "low_flood_area",
+            }
 
         return {
             "mask":       mask,
             "confidence": confidence,
             "suppressed": False,
+            "flood_pixel_ratio": flood_pixel_ratio,
         }

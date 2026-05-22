@@ -146,6 +146,14 @@ st.markdown("""
     .r-high     { background:rgba(255,136,51,0.2); color:#ffaa55; border:1px solid rgba(255,136,51,0.5); }
     .r-medium   { background:rgba(255,215,0,0.18); color:#ffd700; border:1px solid rgba(255,215,0,0.5); }
     .r-low      { background:rgba(34,232,122,0.18);color:#22e87a; border:1px solid rgba(34,232,122,0.5); }
+    .r-unknown  { background:rgba(122,152,192,0.16);color:#9bb4d8; border:1px solid rgba(122,152,192,0.45); }
+
+    .context-note {
+        background: #0d1424; border: 1px solid #253350; border-left: 3px solid #80aaff;
+        border-radius: 4px; padding: 9px 12px; margin: 0.45rem 0 0.6rem;
+        color: #9db8dc; font-size: 12px; line-height: 1.55;
+    }
+    .context-note strong { color: #dbe9ff; letter-spacing: 0.08em; text-transform: uppercase; }
 
     /* ── System info chip ── */
     .sys-chip {
@@ -250,7 +258,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        '<p class="stCaption">FVD v3 · Phase 4 Real-Time Pipeline</p>',
+        '<p class="stCaption"></p>',
         unsafe_allow_html=True,
     )
 
@@ -274,13 +282,13 @@ def bgr_to_rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
-def render_conf_bar(confidence):
+def render_model_bar(label_text, confidence):
     pct   = confidence * 100
     color = "#1ec864" if pct < 30 else "#ff8833" if pct < 60 else "#ff3232"
     label = "LOW" if pct < 30 else "MODERATE" if pct < 60 else "HIGH"
     st.markdown(
         f'<div class="conf-bar-wrap">'
-        f'<span class="conf-label">SEG CONFIDENCE</span>'
+        f'<span class="conf-label">{label_text}</span>'
         f'<div class="conf-track"><div class="conf-fill" style="width:{pct:.0f}%;background:{color};"></div></div>'
         f'<span class="conf-value" style="color:{color};">{label} {pct:.1f}%</span>'
         f'</div>',
@@ -288,9 +296,13 @@ def render_conf_bar(confidence):
     )
 
 
+def render_conf_bar(confidence):
+    render_model_bar("SEG CONFIDENCE", confidence)
+
+
 def render_metrics(result):
     dets = result.get("detections", [])
-    counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNKNOWN": 0}
     for d in dets:
         r = d.get("risk", "LOW")
         counts[r] = counts.get(r, 0) + 1
@@ -337,6 +349,37 @@ def panel(label):
     st.markdown(f'<p class="panel-label">{label}</p>', unsafe_allow_html=True)
 
 
+def is_likely_map_or_diagram(image, detections):
+    if detections:
+        return False
+
+    small = cv2.resize(image, (224, 224), interpolation=cv2.INTER_AREA)
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+
+    white_ratio = float(np.mean(np.all(small > 215, axis=2)))
+    pale_ratio = float(np.mean((hsv[:, :, 1] < 45) & (hsv[:, :, 2] > 130)))
+    edge_ratio = float(np.mean(cv2.Canny(gray, 50, 150) > 0))
+    quantized = (small // 32).reshape(-1, 3)
+    color_bins = len(np.unique(quantized, axis=0))
+
+    return (
+        white_ratio > 0.30
+        or (white_ratio > 0.18 and edge_ratio > 0.045)
+        or (pale_ratio > 0.55 and color_bins < 120)
+    )
+
+
+def render_context_note():
+    st.markdown(
+        '<div class="context-note">'
+        '<strong>Flood-related image detected.</strong><br>'
+        'No persons detected. Segmentation is not applicable for maps, diagrams, or infographics.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ============================================================
 # MAIN INFERENCE  — single-page compact layout
 # ============================================================
@@ -345,6 +388,7 @@ def run_inference(frame, system, show_input=True):
         result = system.process_frame(frame)
 
     decision = result["decision"]
+    cls_conf = result.get("classification", {}).get("flood_probability", 0.0)
 
     # ── Status + confidence row ──────────────────────────────
     row_a, row_b = st.columns([1, 3])
@@ -362,16 +406,20 @@ def run_inference(frame, system, show_input=True):
                 unsafe_allow_html=True,
             )
 
+    with row_b:
+        render_model_bar("CLS CONFIDENCE", cls_conf)
+
     if decision == "NO FLOOD":
         st.markdown("---")
         panel("Uploaded Image")
-        st.image(bgr_to_rgb(frame), use_container_width=True)
+        st.image(bgr_to_rgb(frame), width="stretch")
         return
 
     seg  = result["segmentation"]
     mask = seg["mask"]
     conf = seg["confidence"]
     dets = result.get("detections", [])
+    map_or_diagram = is_likely_map_or_diagram(frame, dets)
 
     with row_b:
         render_conf_bar(conf)
@@ -379,38 +427,42 @@ def run_inference(frame, system, show_input=True):
     # ── Metrics row ──────────────────────────────────────────
     render_metrics(result)
 
+    if map_or_diagram:
+        render_context_note()
+
     st.markdown("---")
 
     # ── Image grid: determine active columns ─────────────────
     annotated = frame.copy()
     annotated = draw_detections(annotated, dets)
 
-    active_cols  = ["input", "detection"]
-    if show_overlay: active_cols.append("overlay")
-    if show_mask:    active_cols.append("mask")
+    active_cols  = ["input"] if map_or_diagram else ["input", "detection"]
+    if not map_or_diagram and show_overlay: active_cols.append("overlay")
+    if not map_or_diagram and show_mask:    active_cols.append("mask")
 
     cols = st.columns(len(active_cols))
     col_map = dict(zip(active_cols, cols))
 
     with col_map["input"]:
         panel("Uploaded Image")
-        st.image(bgr_to_rgb(frame), use_container_width=True)
+        st.image(bgr_to_rgb(frame), width="stretch")
 
-    with col_map["detection"]:
-        panel("Detection Result")
-        st.image(bgr_to_rgb(annotated), use_container_width=True)
+    if "detection" in col_map:
+        with col_map["detection"]:
+            panel("Detection Result")
+            st.image(bgr_to_rgb(annotated), width="stretch")
 
-    if show_overlay:
+    if "overlay" in col_map:
         with col_map["overlay"]:
             panel("Flood Overlay")
             colored_mask = cv2.applyColorMap(mask.astype(np.uint8), cv2.COLORMAP_JET)
             overlay_img  = cv2.addWeighted(frame, 0.65, colored_mask, 0.35, 0)
-            st.image(bgr_to_rgb(overlay_img), use_container_width=True)
+            st.image(bgr_to_rgb(overlay_img), width="stretch")
 
-    if show_mask:
+    if "mask" in col_map:
         with col_map["mask"]:
             panel("Flood Mask")
-            st.image(mask, use_container_width=True, clamp=True)
+            st.image(mask, width="stretch", clamp=True)
 
     # ── Risk table + download ────────────────────────────────
     st.markdown("---")
