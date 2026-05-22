@@ -3,20 +3,19 @@
 # Flood Victim Detection v3 - Central Configuration
 # ============================================================
 
+from pathlib import Path
 import os
 
 # ============================================================
 # ROOT PROJECT
 # ============================================================
-PROJECT_ROOT = r"C:\Users\Test1\Desktop\flood_victium_detection"
+V3_ROOT = str(Path(__file__).resolve().parents[1])
+
+PROJECT_ROOT = str(Path(V3_ROOT).parent)
 
 # ============================================================
 # V3 PROJECT ROOT
 # ============================================================
-V3_ROOT = os.path.join(
-    PROJECT_ROOT,
-    "flood_victim_detection_v3",
-)
 
 # ============================================================
 # ORIGINAL DATASETS
